@@ -9,6 +9,21 @@
   A simple Wi-Fi client manager for OpenWrt's LuCI web interface.
 </p>
 
+<p align="center">
+  <img src="https://img.shields.io/badge/OpenWrt-23.05%2B-00B5E2?logo=openwrt&logoColor=white" alt="OpenWrt 23.05+">
+  <img src="https://img.shields.io/badge/LuCI-app-blue" alt="LuCI app">
+  <img src="https://img.shields.io/github/license/nooblk-98/luci-app-wban" alt="License: MIT">
+  <img src="https://img.shields.io/github/stars/nooblk-98/luci-app-wban?style=flat" alt="GitHub stars">
+</p>
+
+<p align="center">
+  <a href="#features">Features</a> •
+  <a href="#screenshots">Screenshots</a> •
+  <a href="#installation">Installation</a> •
+  <a href="#usage">Usage</a> •
+  <a href="#good-to-know">Good to know</a>
+</p>
+
 ---
 
 ## Features
