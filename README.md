@@ -57,6 +57,19 @@
 
 ## Installation
 
+### From a release package (recommended)
+
+Download the package for your OpenWrt version from the [latest release](https://github.com/nooblk-98/luci-app-wban/releases/latest), copy it to the router's `/tmp`, then install it:
+
+| OpenWrt version | Package | Install command |
+|---|---|---|
+| 25.12 and newer | `.apk` | `apk add --allow-untrusted /tmp/luci-app-wban*.apk` |
+| 23.05 / 24.10 | `.ipk` | `opkg update && opkg install /tmp/luci-app-wban*.ipk` |
+
+The package works on every router architecture.
+
+### Manual copy
+
 Copy the app onto your router (replace `192.168.1.1` with your router's IP):
 
 ```sh

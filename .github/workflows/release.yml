@@ -1,0 +1,63 @@
+name: Build and publish packages
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to attach packages to (e.g. v1.0.0)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.format }} (OpenWrt ${{ matrix.sdk }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - format: ipk
+            sdk: 24.10.5
+          - format: apk
+            sdk: 25.12.1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compile luci-app-wban
+        uses: nooblk-98/openwrt-package-compile-action@v1
+        with:
+          package-name: luci-app-wban
+          package-dir: luci-app-wban
+          sdk-version: ${{ matrix.sdk }}
+          sdk-target: x86
+          sdk-subtarget: "64"
+          feeds-update: "packages luci"
+          feeds-install: "luci-base"
+          artifact-name: luci-app-wban-${{ matrix.format }}
+
+  publish:
+    name: Attach packages to release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: List packages
+        run: ls -la dist
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.release.tag_name || inputs.tag }}
+          files: |
+            dist/*.ipk
+            dist/*.apk
+          fail_on_unmatched_files: true
+          overwrite: true
