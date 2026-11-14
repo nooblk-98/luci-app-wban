@@ -58,8 +58,6 @@
 
 ## Installation
 
-### From a release package (recommended)
-
 Download the package for your OpenWrt version from the [latest release](https://github.com/nooblk-98/luci-app-wban/releases/latest), copy it to the router's `/tmp`, then install it:
 
 | OpenWrt version | Package | Install command |
@@ -67,20 +65,7 @@ Download the package for your OpenWrt version from the [latest release](https://
 | 25.12 and newer | `.apk` | `apk add --allow-untrusted /tmp/luci-app-wban*.apk` |
 | 23.05 / 24.10 | `.ipk` | `opkg update && opkg install /tmp/luci-app-wban*.ipk` |
 
-The package works on every router architecture.
-
-### Manual copy
-
-Copy the app onto your router (replace `192.168.1.1` with your router's IP):
-
-```sh
-scp -O -r luci-app-wban/root/* root@192.168.1.1:/
-scp -O -r luci-app-wban/htdocs/* root@192.168.1.1:/www/
-ssh root@192.168.1.1 'apk add ucode-mod-uloop 2>/dev/null || opkg install ucode-mod-uloop; \
-  sh /etc/uci-defaults/80_luci-wban && rm /etc/uci-defaults/80_luci-wban; /etc/init.d/rpcd restart'
-```
-
-Then refresh LuCI in your browser.
+The package works on every router architecture. After installing, refresh LuCI in your browser.
 
 ## Usage
 

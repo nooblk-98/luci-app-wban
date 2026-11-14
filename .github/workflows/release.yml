@@ -35,7 +35,7 @@ jobs:
           sdk-version: ${{ matrix.sdk }}
           sdk-target: x86
           sdk-subtarget: "64"
-          feeds-update: "packages luci"
+          feeds-update: "base packages luci"
           feeds-install: "luci-base"
           artifact-name: luci-app-wban-${{ matrix.format }}
 
