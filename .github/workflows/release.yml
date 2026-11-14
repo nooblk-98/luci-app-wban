@@ -15,7 +15,7 @@ permissions:
 jobs:
   build:
     name: Build ${{ matrix.format }} (OpenWrt ${{ matrix.sdk }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -42,7 +42,7 @@ jobs:
   publish:
     name: Attach packages to release
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/download-artifact@v4
         with:

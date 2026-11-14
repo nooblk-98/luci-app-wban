@@ -10,10 +10,11 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/OpenWrt-23.05%2B-00B5E2?logo=openwrt&logoColor=white" alt="OpenWrt 23.05+">
-  <img src="https://img.shields.io/badge/LuCI-app-blue" alt="LuCI app">
-  <img src="https://img.shields.io/github/license/nooblk-98/luci-app-wban" alt="License: MIT">
-  <img src="https://img.shields.io/github/stars/nooblk-98/luci-app-wban?style=flat" alt="GitHub stars">
+  <a href="https://github.com/nooblk-98/luci-app-wban/releases/latest"><img src="https://img.shields.io/github/v/release/nooblk-98/luci-app-wban?label=release&color=brightgreen" alt="Latest release"></a>
+  <a href="https://openwrt.org/"><img src="https://img.shields.io/badge/OpenWrt-23.05%2B-00B5E2" alt="OpenWrt 23.05+"></a>
+  <a href="https://github.com/openwrt/luci"><img src="https://img.shields.io/badge/LuCI-app-blue" alt="LuCI app"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-yellow" alt="License: MIT"></a>
+  <a href="https://github.com/nooblk-98/luci-app-wban/stargazers"><img src="https://img.shields.io/github/stars/nooblk-98/luci-app-wban?style=flat" alt="GitHub stars"></a>
 </p>
 
 <p align="center">
