@@ -1,5 +1,9 @@
 # luci-app-wban
 
+<p align="center">
+  <img src="docs/screenshots/banner.png" alt="luci-app-wban Devices tab: connected Wi-Fi clients with Kick and Ban buttons" width="100%">
+</p>
+
 A LuCI app for OpenWrt to **see who is on your Wi-Fi, kick them, and ban / unban them**. You can ban by MAC address or by **device name**, so a phone that switches to a new random MAC still gets caught.
 
 Find it in LuCI under **Network → Wi-Fi Ban**. It has three tabs:
@@ -9,6 +13,21 @@ Find it in LuCI under **Network → Wi-Fi Ban**. It has three tabs:
 | **Devices** | Live list of connected Wi-Fi clients: name, MAC, IP, SSID, band, signal, rates, traffic, uptime. **Kick** or **Ban** each one. |
 | **Ban list** | All rules: MAC rules and name rules, with the MACs each name rule has learned. Add, enable/disable, set an expiry, edit the label, unban. |
 | **Settings** | Turn enforcement on or off, set the re-apply interval, kick cool-down, learned-MAC limit, a **never-ban list** for your own devices, and syslog logging. |
+
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/ban-dialog.png" alt="Ban dialog: ban by MAC address, by device name, or both, with label and duration"></td>
+    <td width="50%"><img src="docs/screenshots/ban-list.png" alt="Ban list tab with MAC and name rules, learned MACs, expiry and status"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Ban dialog</b>: by MAC, by device name, or both</td>
+    <td align="center"><b>Ban list</b>: name rules remember every MAC they catch</td>
+  </tr>
+</table>
+
+<sub>Screenshots are from OpenWrt 25.12 with the NoobWrt theme. Device names and MAC addresses are replaced with demo values.</sub>
 
 ## Features
 

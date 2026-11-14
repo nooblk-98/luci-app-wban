@@ -389,6 +389,7 @@ return baseclass.extend({
 			'.wban-actions .btn, .wban-actions .cbi-button { margin-left:.25em }',
 			'.wban-toolbar { display:flex; flex-wrap:wrap; gap:.5em; align-items:center; margin:.5em 0 1em }',
 			'.wban-toolbar input, .wban-toolbar select { width:auto; min-width:10em }',
+			'.wban-toolbar input[type="search"] { min-width:22em; max-width:100% }',
 			'.wban-cards { display:flex; flex-wrap:wrap; gap:.75em; margin-bottom:1em }',
 			'.wban-card { flex:1 1 12em; padding:.6em .8em; border:1px solid rgba(128,128,128,.35); border-radius:4px }',
 			'.wban-card strong { display:block; font-size:110% }',
