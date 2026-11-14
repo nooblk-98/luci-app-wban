@@ -65,7 +65,8 @@ Download the package for your OpenWrt version from the [latest release](https://
 | 25.12 and newer | `.apk` | `apk add --allow-untrusted /tmp/luci-app-wban*.apk` |
 | 23.05 / 24.10 | `.ipk` | `opkg update && opkg install /tmp/luci-app-wban*.ipk` |
 
-The package works on every router architecture. After installing, refresh LuCI in your browser.
+> [!TIP]
+> One package works on every router architecture. After installing, refresh LuCI in your browser.
 
 ## Usage
 
@@ -92,10 +93,8 @@ wban kick <mac>
 
 ## Good to know
 
-- **Name bans need a hostname.** They only work if the device sends its name when it connects. iPhones usually do; many Android phones using random MACs do not.
-- **New random MACs are caught on connect.** The device may appear for a moment before it is kicked and kept out.
-- **This is not a security tool.** Someone who changes both their MAC and device name can get back in. Use a strong Wi-Fi password (WPA2/WPA3) for real access control.
+> [!NOTE]
+> **Name bans need a hostname.** They only work if the device sends its name when it connects. iPhones usually do; many Android phones using random MACs do not. A device with a new random MAC may appear for a moment before it is kicked and kept out.
 
-## License
-
-MIT. See [LICENSE](LICENSE).
+> [!WARNING]
+> **This is not a security tool.** Someone who changes both their MAC and device name can get back in. Use a strong Wi-Fi password (WPA2/WPA3) for real access control.
