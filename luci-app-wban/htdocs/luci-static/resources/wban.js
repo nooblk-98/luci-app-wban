@@ -162,15 +162,23 @@ return baseclass.extend({
 			return E('span', {}, '-');
 
 		var q = Math.min(Math.max(2 * (dbm + 100), 0), 100);
-		var icon = (q <= 0) ? 'signal-0.png'
-			: (q < 25) ? 'signal-0-25.png'
-			: (q < 50) ? 'signal-25-50.png'
-			: (q < 75) ? 'signal-50-75.png'
-			: 'signal-75-100.png';
+
+		/* LuCI 25.x ships signal-000-025.svg; older releases signal-0-25.png */
+		var icon = (q <= 0) ? [ 'signal-000-000.svg', 'signal-0.png' ]
+			: (q < 25) ? [ 'signal-000-025.svg', 'signal-0-25.png' ]
+			: (q < 50) ? [ 'signal-025-050.svg', 'signal-25-50.png' ]
+			: (q < 75) ? [ 'signal-050-075.svg', 'signal-50-75.png' ]
+			: [ 'signal-075-100.svg', 'signal-75-100.png' ];
+
+		var img = E('img', { 'src': L.resource('icons/' + icon[0]), 'alt': '' });
+
+		img.addEventListener('error', function onError() {
+			img.removeEventListener('error', onError);
+			img.src = L.resource('icons/' + icon[1]);
+		});
 
 		return E('span', { 'class': 'wban-signal', 'title': _('Signal quality %d%%').format(q) }, [
-			E('img', { 'src': L.resource('icons/' + icon), 'alt': '' }),
-			' ', '%d dBm'.format(dbm)
+			img, ' ', '%d dBm'.format(dbm)
 		]);
 	},
 
