@@ -1,0 +1,23 @@
+
+config wban 'settings'
+	option enabled '1'
+	# seconds between enforcement passes; hostapd bans live 3x this long
+	option interval '30'
+	# after "Kick", keep the device out this many seconds
+	option kick_ban '10'
+	# max MACs remembered per name rule (oldest dropped first)
+	option learn_limit '16'
+	option log '1'
+	# devices that can never be banned (your own phone / PC)
+	# list allow_mac 'aa:bb:cc:dd:ee:ff'
+
+# Rules are managed from LuCI (Network > Wi-Fi Ban) or the `wban` CLI:
+#
+# config rule
+#	option kind 'mac'                 # 'mac' or 'name'
+#	option value 'aa:bb:cc:dd:ee:ff'  # MAC, or hostname pattern like 'Galaxy-*'
+#	option label 'Neighbour phone'
+#	option enabled '1'
+#	option added '1763100000'
+#	option expires '0'                # unix time, 0/unset = permanent
+#	list learned 'de:ad:be:ef:00:01'  # name rules: MACs seen with that name

@@ -1,0 +1,17 @@
+{
+	"luci-app-wban": {
+		"description": "Grant access to the Wi-Fi kick / ban manager",
+		"read": {
+			"ubus": {
+				"luci.wban": [ "status" ]
+			},
+			"uci": [ "wban" ]
+		},
+		"write": {
+			"ubus": {
+				"luci.wban": [ "kick", "add_rule", "set_rule", "remove_rule", "forget_mac", "enforce" ]
+			},
+			"uci": [ "wban" ]
+		}
+	}
+}

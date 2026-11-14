@@ -1,0 +1,193 @@
+#!/usr/bin/ucode
+// SPDX-License-Identifier: MIT
+//
+// wban - command line front end and enforcement daemon for luci-app-wban.
+
+'use strict';
+
+import * as wban from 'wban';
+
+const USAGE = join('\n', [
+	'Usage: wban <command> [arguments]',
+	'',
+	'  clients                         list connected Wi-Fi devices',
+	'  rules                           list ban rules',
+	'  status                          full state as JSON',
+	'  ban-mac <mac> [label] [secs]    ban a MAC address (secs 0 = permanent)',
+	'  ban-name <pattern> [label] [secs]',
+	'                                  ban a device name (wildcards * ?)',
+	'  unban <id|mac|pattern>          remove a rule and lift its bans',
+	'  enable <id|mac|pattern>         enable a rule',
+	'  disable <id|mac|pattern>        disable a rule',
+	'  forget <id|pattern> <mac>       drop a learned MAC from a name rule',
+	'  kick <mac>                      disconnect a device once',
+	'  enforce                         run one enforcement pass',
+	'  release-all                     lift all hostapd bans (rules kept)',
+	'  check-lease <mac> <hostname>    used by the DHCP hotplug hook',
+	'  daemon                          run the enforcement loop (procd)',
+	''
+]);
+
+function die(msg) {
+	warn(msg, '\n');
+	exit(1);
+}
+
+function result(res) {
+	if (type(res) == 'object' && res.error)
+		die('wban: ' + res.error);
+
+	printf('%.J\n', res);
+	exit(0);
+}
+
+function pad(s, n) {
+	s = (s == null) ? '-' : ('' + s);
+
+	while (length(s) < n)
+		s += ' ';
+
+	return s;
+}
+
+function print_clients() {
+	let st = wban.status();
+
+	printf('%s%s%s%s%s%s\n', pad('MAC', 19), pad('NAME', 24), pad('IP', 16),
+		pad('SSID', 18), pad('BAND', 9), 'SIGNAL');
+
+	for (let c in st.clients)
+		printf('%s%s%s%s%s%s\n', pad(c.mac, 19), pad(c.name, 24), pad(c.ip, 16),
+			pad(c.ssid || c.ifname, 18), pad(c.band, 9),
+			(c.signal != null) ? c.signal + ' dBm' : '-');
+
+	exit(0);
+}
+
+function print_rules() {
+	let st = wban.status();
+
+	printf('%s%s%s%s%s%s\n', pad('ID', 12), pad('KIND', 6), pad('VALUE', 26),
+		pad('LABEL', 20), pad('STATE', 10), 'LEARNED');
+
+	for (let r in st.rules)
+		printf('%s%s%s%s%s%s\n', pad(r.id, 12), pad(r.kind, 6), pad(r.value, 26),
+			pad(r.label, 20), pad(r.enabled ? 'active' : 'disabled', 10),
+			length(r.learned) ? join(',', r.learned) : '-');
+
+	exit(0);
+}
+
+function run_daemon() {
+	let uloop = require('uloop');
+	let timer = null;
+
+	uloop.init();
+
+	let tick = function() {
+		let next = 30;
+
+		try {
+			next = wban.enforce().interval || next;
+		}
+		catch (e) {
+			warn(sprintf('wban: enforcement pass failed: %s\n', e));
+		}
+
+		timer.set(next * 1000);
+	};
+
+	timer = uloop.timer(1000, tick);
+
+	// Re-apply bans right away when hostapd interfaces (re)appear, e.g.
+	// after `wifi reload`, instead of waiting for the next tick.
+	let conn = null;
+
+	try {
+		conn = require('ubus').connect();
+		conn.listener('ubus.object.add', function(ev, msg) {
+			if (type(msg) == 'object' && type(msg.path) == 'string' && index(msg.path, 'hostapd.') == 0)
+				timer.set(2000);
+		});
+	}
+	catch (e) {
+		warn('wban: ubus event listener unavailable, relying on the interval timer\n');
+	}
+
+	uloop.run();
+
+	if (conn)
+		conn.disconnect();
+}
+
+let cmd = ARGV[0];
+
+switch (cmd) {
+case 'clients':
+	print_clients();
+	break;
+
+case 'rules':
+	print_rules();
+	break;
+
+case 'status':
+	result(wban.status());
+	break;
+
+case 'ban-mac':
+case 'ban-name':
+	if (!ARGV[1])
+		die(USAGE);
+	result(wban.add_rule({
+		kind: (cmd == 'ban-name') ? 'name' : 'mac',
+		value: ARGV[1],
+		label: ARGV[2],
+		duration: ARGV[3]
+	}));
+	break;
+
+case 'unban':
+	if (!ARGV[1])
+		die(USAGE);
+	result(wban.remove_rule(ARGV[1]));
+	break;
+
+case 'enable':
+case 'disable':
+	if (!ARGV[1])
+		die(USAGE);
+	result(wban.set_rule({ id: ARGV[1], enabled: (cmd == 'enable') }));
+	break;
+
+case 'forget':
+	if (!ARGV[1] || !ARGV[2])
+		die(USAGE);
+	result(wban.forget_mac(ARGV[1], ARGV[2]));
+	break;
+
+case 'kick':
+	if (!ARGV[1])
+		die(USAGE);
+	result(wban.kick(ARGV[1]));
+	break;
+
+case 'enforce':
+	result(wban.enforce());
+	break;
+
+case 'release-all':
+	result(wban.release_all());
+	break;
+
+case 'check-lease':
+	result(wban.check_lease(ARGV[1], ARGV[2]));
+	break;
+
+case 'daemon':
+	run_daemon();
+	break;
+
+default:
+	die(USAGE);
+}

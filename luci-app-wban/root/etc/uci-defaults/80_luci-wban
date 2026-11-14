@@ -1,0 +1,33 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+
+[ -f /etc/config/wban ] || touch /etc/config/wban
+
+uci -q get wban.settings >/dev/null || {
+	uci -q batch <<-EOF
+		set wban.settings=wban
+		set wban.settings.enabled='1'
+		set wban.settings.interval='30'
+		set wban.settings.kick_ban='10'
+		set wban.settings.learn_limit='16'
+		set wban.settings.log='1'
+		commit wban
+	EOF
+}
+
+# Exec bits can get lost when the package source passed through Windows.
+chmod 0755 /etc/init.d/wban /usr/sbin/wban /etc/hotplug.d/dhcp/90-wban 2>/dev/null
+
+/etc/init.d/wban enable
+
+# Only restart services on a running system, not during first boot.
+if pidof dnsmasq >/dev/null; then
+	# make sure dnsmasq runs its lease hook so name rules work
+	/etc/init.d/dnsmasq restart >/dev/null 2>&1
+	/etc/init.d/wban restart >/dev/null 2>&1
+fi
+
+rm -f /tmp/luci-indexcache*
+rm -rf /tmp/luci-modulecache/
+
+exit 0

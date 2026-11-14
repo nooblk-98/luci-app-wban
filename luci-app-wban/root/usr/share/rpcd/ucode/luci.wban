@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: MIT
+//
+// rpcd ubus object `luci.wban` - thin RPC layer over /usr/share/ucode/wban.uc
+
+'use strict';
+
+import * as wban from 'wban';
+
+function guarded(fn) {
+	return function(req) {
+		try {
+			return fn(req.args || {});
+		}
+		catch (e) {
+			return { error: sprintf('%s', (type(e) == 'object' && e.message) ? e.message : e) };
+		}
+	};
+}
+
+const methods = {
+	status: {
+		call: guarded(function() {
+			return wban.status();
+		})
+	},
+
+	kick: {
+		args: { mac: 'mac' },
+		call: guarded(function(args) {
+			return wban.kick(args.mac);
+		})
+	},
+
+	add_rule: {
+		args: { kind: 'kind', value: 'value', label: 'label', duration: 0 },
+		call: guarded(function(args) {
+			return wban.add_rule(args);
+		})
+	},
+
+	set_rule: {
+		args: { id: 'id', enabled: true, label: 'label' },
+		call: guarded(function(args) {
+			return wban.set_rule(args);
+		})
+	},
+
+	remove_rule: {
+		args: { id: 'id' },
+		call: guarded(function(args) {
+			return wban.remove_rule(args.id);
+		})
+	},
+
+	forget_mac: {
+		args: { id: 'id', mac: 'mac' },
+		call: guarded(function(args) {
+			return wban.forget_mac(args.id, args.mac);
+		})
+	},
+
+	enforce: {
+		call: guarded(function() {
+			return wban.enforce();
+		})
+	},
+
+	check_lease: {
+		args: { mac: 'mac', hostname: 'hostname' },
+		call: guarded(function(args) {
+			return wban.check_lease(args.mac, args.hostname);
+		})
+	}
+};
+
+return { 'luci.wban': methods };

@@ -1,0 +1,15 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+#
+# dnsmasq lease hook: when a device asks for an IP with a hostname that
+# matches a wban name rule, ban its (possibly new, randomized) MAC at once.
+
+case "$ACTION" in
+	add|update|old) ;;
+	*) exit 0 ;;
+esac
+
+[ -n "$MACADDR" ] && [ -n "$HOSTNAME" ] || exit 0
+[ "$(uci -q get wban.settings.enabled)" = "0" ] && exit 0
+
+/usr/bin/ucode /usr/sbin/wban check-lease "$MACADDR" "$HOSTNAME" >/dev/null 2>&1 &
