@@ -25,7 +25,7 @@
 
 import { cursor } from 'uci';
 import { connect } from 'ubus';
-import { readfile } from 'fs';
+import { readfile, lsdir } from 'fs';
 
 const CONFIG = 'wban';
 const LEASE_FILE = '/tmp/dhcp.leases';
@@ -37,8 +37,14 @@ const MAX_LABEL = 64;
 /* Value helpers                                                       */
 /* ------------------------------------------------------------------ */
 
+/* Note: ucode's == is loose (false == '' and 0 == '' are true), so the
+ * type is checked explicitly before comparing against ''. */
 function to_int(value, def, min, max) {
-	if (value == null || value == '')
+	let t = type(value);
+
+	if (value == null || (t == 'string' && !length(trim(value))))
+		return def;
+	if (t != 'int' && t != 'double' && t != 'string')
 		return def;
 
 	let n = int(value);
@@ -54,12 +60,16 @@ function to_int(value, def, min, max) {
 }
 
 function to_bool(value, def) {
-	if (value == null || value == '')
-		return def;
-	if (type(value) == 'bool')
-		return value;
+	let t = type(value);
 
-	return (value == '1' || value == 'true' || value == 'yes' || value == 'on');
+	if (t == 'bool')
+		return value;
+	if (t == 'int' || t == 'double')
+		return value != 0;
+	if (t != 'string' || !length(trim(value)))
+		return def;
+
+	return (value === '1' || value === 'true' || value === 'yes' || value === 'on');
 }
 
 function to_list(value) {
@@ -76,10 +86,10 @@ function field(obj, key) {
 }
 
 function pick(a, b) {
-	return (a != null) ? a : b;
+	return (a !== null) ? a : b;
 }
 
-export function normalize_mac(mac) {
+function normalize_mac(mac) {
 	if (type(mac) != 'string')
 		return null;
 
@@ -99,7 +109,7 @@ function clean_label(label) {
 
 /* Hostname patterns: letters, digits, '.', '-', '_', space, '*', '?'.
  * At least two non-wildcard characters, so "*" cannot ban everyone. */
-export function valid_pattern(pattern) {
+function valid_pattern(pattern) {
 	if (type(pattern) != 'string' || !match(pattern, /^[A-Za-z0-9._*? -]{1,63}$/))
 		return false;
 
@@ -458,6 +468,32 @@ function read_hosts(ctx) {
 	return hosts;
 }
 
+/* MAC -> nl80211 sta_info (connected_time, inactive_time, ...) for one
+ * interface. Read straight from the kernel: this code also runs inside
+ * rpcd, and calling rpcd's own `iwinfo` ubus object from there deadlocks. */
+function station_info(ifname) {
+	let res = {};
+
+	try {
+		let nl = require('nl80211');
+		let stations = nl.request(nl.const.NL80211_CMD_GET_STATION, nl.const.NLM_F_DUMP, { dev: ifname });
+
+		for (let s in (stations || [])) {
+			let m = normalize_mac(field(s, 'mac'));
+			if (m)
+				res[m] = field(s, 'sta_info') || {};
+		}
+	}
+	catch (e) { }
+
+	return res;
+}
+
+/* hostapd reports rates in bit/s; the UI wants kbit/s. */
+function kbit(bps) {
+	return (bps > 0) ? int(bps / 1000) : null;
+}
+
 function collect_wifi(ctx, hosts) {
 	let ifaces = [];
 	let clients = [];
@@ -466,22 +502,14 @@ function collect_wifi(ctx, hosts) {
 		let ifname = substr(obj, length('hostapd.'));
 		let hc = ucall(ctx, obj, 'get_clients') || {};
 		let st = ucall(ctx, obj, 'get_status') || {};
-		let info = ucall(ctx, 'iwinfo', 'info', { device: ifname }) || {};
-		let assoclist = field(ucall(ctx, 'iwinfo', 'assoclist', { device: ifname }), 'results');
-		let assoc = {};
+		let sta = station_info(ifname);
 
-		for (let a in (assoclist || [])) {
-			let m = normalize_mac(a.mac);
-			if (m)
-				assoc[m] = a;
-		}
-
-		let freq = hc.freq || st.freq || info.frequency;
+		let freq = hc.freq || st.freq;
 		let iface = {
 			ifname: ifname,
-			ssid: info.ssid || st.ssid || null,
+			ssid: st.ssid || null,
 			band: band_of(freq),
-			channel: info.channel || st.channel || null,
+			channel: st.channel || null,
 			clients: 0
 		};
 
@@ -496,7 +524,7 @@ function collect_wifi(ctx, hosts) {
 				continue;
 
 			let c = stations[raw];
-			let a = assoc[mac] || {};
+			let s = sta[mac] || {};
 			let h = hosts[mac] || {};
 
 			iface.clients++;
@@ -509,14 +537,13 @@ function collect_wifi(ctx, hosts) {
 				hostname: h.hostname || null,
 				name: h.static_name || h.hostname || null,
 				ip: h.ip || null,
-				signal: pick(a.signal, field(c, 'signal')),
-				noise: a.noise,
-				connected_time: pick(a.connected_time, field(c, 'connected_time')),
-				inactive: a.inactive,
-				rx_rate: field(a.rx, 'rate'),
-				tx_rate: field(a.tx, 'rate'),
-				rx_bytes: pick(field(a.rx, 'bytes'), field(field(c, 'bytes'), 'rx')),
-				tx_bytes: pick(field(a.tx, 'bytes'), field(field(c, 'bytes'), 'tx')),
+				signal: pick(field(c, 'signal'), s.signal),
+				connected_time: s.connected_time,
+				inactive: s.inactive_time,
+				rx_rate: kbit(field(field(c, 'rate'), 'rx')),
+				tx_rate: kbit(field(field(c, 'rate'), 'tx')),
+				rx_bytes: field(field(c, 'bytes'), 'rx'),
+				tx_bytes: field(field(c, 'bytes'), 'tx'),
 				authorized: to_bool(field(c, 'authorized'), true)
 			});
 		}
@@ -525,13 +552,18 @@ function collect_wifi(ctx, hosts) {
 	return { interfaces: ifaces, clients: clients };
 }
 
-function daemon_running(ctx) {
-	let svc = ucall(ctx, 'service', 'list', { name: CONFIG });
-	let instances = field(field(svc, CONFIG), 'instances') || {};
+/* Looks for the `wban daemon` process in /proc. (Asking procd via ubus
+ * `service list` hangs when this runs inside rpcd.) */
+function daemon_running() {
+	for (let pid in (lsdir('/proc') || [])) {
+		if (!match(pid, /^[0-9]+$/))
+			continue;
 
-	for (let k in keys(instances))
-		if (field(instances[k], 'running'))
+		let cmd = readfile('/proc/' + pid + '/cmdline');
+
+		if (cmd && index(cmd, '/usr/sbin/wban') >= 0 && index(cmd, 'daemon') >= 0)
 			return true;
+	}
 
 	return false;
 }
@@ -604,7 +636,7 @@ function export_settings(s) {
 /* ------------------------------------------------------------------ */
 
 /* Everything the Devices / Ban list pages need, in one call. */
-export function status() {
+function status() {
 	let ctx = open_ctx();
 	let rules = read_rules(ctx);
 	let wifi = collect_wifi(ctx, read_hosts(ctx));
@@ -621,7 +653,7 @@ export function status() {
 	let res = {
 		now: ctx.now,
 		settings: export_settings(ctx.settings),
-		daemon: daemon_running(ctx),
+		daemon: daemon_running(),
 		interfaces: wifi.interfaces,
 		clients: wifi.clients,
 		rules: rules
@@ -634,7 +666,7 @@ export function status() {
 
 /* Disconnects a station. It is kept out for `kick_ban` seconds so it
  * really drops instead of reconnecting instantly. */
-export function kick(mac) {
+function kick(mac) {
 	mac = normalize_mac(mac);
 
 	if (!mac)
@@ -655,7 +687,7 @@ export function kick(mac) {
 
 /* args: { kind: 'mac'|'name', value, label?, duration? (seconds, 0 = permanent) }
  * Adding a rule that already exists re-enables it and updates label/expiry. */
-export function add_rule(args) {
+function add_rule(args) {
 	args = args || {};
 
 	let kind = (args.kind == 'name') ? 'name' : 'mac';
@@ -717,7 +749,7 @@ export function add_rule(args) {
 }
 
 /* args: { id, enabled?, label? }  (id may also be a MAC or name pattern) */
-export function set_rule(args) {
+function set_rule(args) {
 	args = args || {};
 
 	let ctx = open_ctx();
@@ -728,7 +760,7 @@ export function set_rule(args) {
 		return { error: 'Rule not found' };
 	}
 
-	if (args.enabled != null)
+	if (args.enabled !== null)
 		ctx.uci.set(CONFIG, rule.id, 'enabled', to_bool(args.enabled, true) ? '1' : '0');
 
 	if (type(args.label) == 'string') {
@@ -742,7 +774,7 @@ export function set_rule(args) {
 
 	ctx.uci.commit(CONFIG);
 
-	if (args.enabled != null && !to_bool(args.enabled, true))
+	if (args.enabled !== null && !to_bool(args.enabled, true))
 		release_macs(ctx, rule_macs(rule));
 
 	run_enforce(ctx);
@@ -752,7 +784,7 @@ export function set_rule(args) {
 }
 
 /* Deletes a rule (by id, MAC or name pattern) and lifts its bans. */
-export function remove_rule(key) {
+function remove_rule(key) {
 	let ctx = open_ctx();
 	let rule = find_rule(read_rules(ctx), key);
 
@@ -773,7 +805,7 @@ export function remove_rule(key) {
 }
 
 /* Removes one learned MAC from a name rule (e.g. a false match). */
-export function forget_mac(key, mac) {
+function forget_mac(key, mac) {
 	mac = normalize_mac(mac);
 
 	if (!mac)
@@ -802,7 +834,7 @@ export function forget_mac(key, mac) {
 }
 
 /* Called by the DHCP hotplug hook whenever a lease is handed out. */
-export function check_lease(mac, hostname) {
+function check_lease(mac, hostname) {
 	mac = normalize_mac(mac);
 
 	if (!mac || type(hostname) != 'string')
@@ -829,7 +861,7 @@ export function check_lease(mac, hostname) {
 }
 
 /* One enforcement pass (run by the daemon every `interval` seconds). */
-export function enforce() {
+function enforce() {
 	let ctx = open_ctx();
 	let stats = run_enforce(ctx);
 
@@ -842,7 +874,7 @@ export function enforce() {
 }
 
 /* Lifts every hostapd ban without touching the rules. */
-export function release_all() {
+function release_all() {
 	let ctx = open_ctx();
 	let n = 0;
 
@@ -857,10 +889,25 @@ export function release_all() {
 	return { ok: true, released: n };
 }
 
-export function interval() {
+function interval() {
 	let uci = cursor();
 
 	uci.load(CONFIG);
 
 	return read_settings(uci).interval;
 }
+
+export {
+	normalize_mac,
+	valid_pattern,
+	status,
+	kick,
+	add_rule,
+	set_rule,
+	remove_rule,
+	forget_mac,
+	check_lease,
+	enforce,
+	release_all,
+	interval
+};

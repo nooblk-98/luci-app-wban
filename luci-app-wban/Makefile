@@ -9,7 +9,7 @@ LUCI_TITLE:=LuCI Wi-Fi client kick / ban manager
 LUCI_DESCRIPTION:=Lists connected Wi-Fi devices and lets you kick, ban or \
 	unban them on every hostapd SSID, by MAC address or by DHCP device name \
 	(catches randomized MACs). Bans survive reboots and Wi-Fi restarts.
-LUCI_DEPENDS:=+luci-base +rpcd-mod-ucode +rpcd-mod-iwinfo \
+LUCI_DEPENDS:=+luci-base +rpcd-mod-ucode +ucode-mod-nl80211 \
 	+ucode +ucode-mod-uci +ucode-mod-ubus +ucode-mod-fs +ucode-mod-uloop
 LUCI_PKGARCH:=all
 
